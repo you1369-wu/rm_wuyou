@@ -51,6 +51,7 @@
 osThreadId defaultTaskHandle;
 osThreadId imutaskHandle;
 osThreadId usarttaskHandle;
+osThreadId remoteTaskHandle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -60,6 +61,7 @@ osThreadId usarttaskHandle;
 void StartDefaultTask(void const * argument);
 void StartImuTask(void const * argument);
 void StartUsartTask(void const * argument);
+void StartRemoteTask(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -118,6 +120,10 @@ void MX_FREERTOS_Init(void) {
   osThreadDef(usarttask, StartUsartTask, osPriorityLow, 0, 512);
   usarttaskHandle = osThreadCreate(osThread(usarttask), NULL);
 
+  /* definition and creation of remoteTask */
+  osThreadDef(remoteTask, StartRemoteTask, osPriorityNormal, 0, 512);
+  remoteTaskHandle = osThreadCreate(osThread(remoteTask), NULL);
+
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
@@ -170,6 +176,24 @@ void StartUsartTask(void const * argument)
   /* Infinite loop */
   usart_task();
   /* USER CODE END StartUsartTask */
+}
+
+/* USER CODE BEGIN Header_StartRemoteTask */
+/**
+* @brief Function implementing the remoteTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartRemoteTask */
+void StartRemoteTask(void const * argument)
+{
+  /* USER CODE BEGIN StartRemoteTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartRemoteTask */
 }
 
 /* Private application code --------------------------------------------------*/
