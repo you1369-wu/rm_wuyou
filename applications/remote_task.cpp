@@ -1,3 +1,4 @@
+//遥控器控制
 #include "remote_task.h"
 
 #include "cmsis_os.h"
@@ -72,20 +73,6 @@ extern "C" void remote_task(void)
   }
 }
 
-extern "C" bool remote_task_get_data(RemoteTaskData * data)
-{
-  if ((data == nullptr) || !remote_data_ready) {
-    return false;
-  }
-
-  *data = latest_remote_data;
-  return true;
-}
-
-extern "C" bool remote_task_is_alive(void)
-{
-  return remote.is_alive(osKernelSysTick());
-}
 
 extern "C" void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef * huart, uint16_t Size)
 {

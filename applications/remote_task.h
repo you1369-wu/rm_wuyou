@@ -61,8 +61,6 @@ typedef struct
 } RemoteTaskData;
 
 void remote_task(void);
-bool remote_task_get_data(RemoteTaskData * data);
-bool remote_task_is_alive(void);
 
 #ifdef __cplusplus
 }
