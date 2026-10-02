@@ -27,6 +27,7 @@
 /* USER CODE BEGIN Includes */
 #include "imu_task.h"
 #include "usart_task.h"
+#include "remote_task.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -189,10 +190,7 @@ void StartRemoteTask(void const * argument)
 {
   /* USER CODE BEGIN StartRemoteTask */
   /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
+  remote_task();
   /* USER CODE END StartRemoteTask */
 }
 

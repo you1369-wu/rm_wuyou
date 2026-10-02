@@ -49,7 +49,9 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     applications/imu_task.cpp
     applications/usart_task.cpp
+    applications/remote_task.cpp
     sp_middleware/io/bmi088/bmi088.cpp
+    sp_middleware/io/dbus/dbus.cpp
     sp_middleware/tools/mahony/mahony.cpp
     sp_middleware/tools/math_tools/math_tools.cpp
     # Add user sources here
