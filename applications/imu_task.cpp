@@ -18,6 +18,24 @@ sp::BMI088 bmi088(
   &hspi1, CS1_ACCEL_GPIO_Port, CS1_ACCEL_Pin, CS1_GYRO_GPIO_Port, CS1_GYRO_Pin,
   kRotationBmi088ToBoard);
 sp::Mahony imu(kTaskPeriodS);
+
+ImuTaskData latest_imu_data = {};
+bool imu_data_ready = false;
+
+void update_imu_data_snapshot()
+{
+  latest_imu_data.acc_mps2.x = bmi088.acc[0];
+  latest_imu_data.acc_mps2.y = bmi088.acc[1];
+  latest_imu_data.acc_mps2.z = bmi088.acc[2];
+  latest_imu_data.gyro_rad_s.x = bmi088.gyro[0];
+  latest_imu_data.gyro_rad_s.y = bmi088.gyro[1];
+  latest_imu_data.gyro_rad_s.z = bmi088.gyro[2];
+  latest_imu_data.euler.roll_rad = imu.roll;
+  latest_imu_data.euler.pitch_rad = imu.pitch;
+  latest_imu_data.euler.yaw_rad = imu.yaw;
+  latest_imu_data.temp_c = bmi088.temp;
+  imu_data_ready = true;
+}
 }  // namespace
 
 extern "C" void imu_task(void)
@@ -27,7 +45,18 @@ extern "C" void imu_task(void)
   while (true) {
     bmi088.update();
     imu.update(bmi088.acc, bmi088.gyro);
+    update_imu_data_snapshot();
 
     osDelay(1);
   }
+}
+
+extern "C" bool imu_task_get_data(ImuTaskData * data)
+{
+  if ((data == nullptr) || !imu_data_ready) {
+    return false;
+  }
+
+  *data = latest_imu_data;
+  return true;
 }

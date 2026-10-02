@@ -48,6 +48,7 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     applications/imu_task.cpp
+    applications/usart_task.cpp
     sp_middleware/io/bmi088/bmi088.cpp
     sp_middleware/tools/mahony/mahony.cpp
     sp_middleware/tools/math_tools/math_tools.cpp
