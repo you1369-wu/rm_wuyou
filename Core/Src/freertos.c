@@ -25,7 +25,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "imu_task.h"
+#include "usart_task.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -152,10 +153,7 @@ void StartImuTask(void const * argument)
 {
   /* USER CODE BEGIN StartImuTask */
   /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
+  imu_task();
   /* USER CODE END StartImuTask */
 }
 
@@ -170,10 +168,7 @@ void StartUsartTask(void const * argument)
 {
   /* USER CODE BEGIN StartUsartTask */
   /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
+  usart_task();
   /* USER CODE END StartUsartTask */
 }
 

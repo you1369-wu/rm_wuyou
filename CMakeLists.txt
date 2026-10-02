@@ -59,7 +59,6 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     applications
     sp_middleware
-    Drivers/CMSIS/RTOS/Template
     # Add user defined include paths
 )
 
