@@ -28,6 +28,7 @@
 #include "imu_task.h"
 #include "usart_task.h"
 #include "remote_task.h"
+#include "can_task.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -47,22 +48,22 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-
 /* USER CODE END Variables */
 osThreadId defaultTaskHandle;
 osThreadId imutaskHandle;
 osThreadId usarttaskHandle;
 osThreadId remoteTaskHandle;
+osThreadId canTaskHandle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
-
 /* USER CODE END FunctionPrototypes */
 
 void StartDefaultTask(void const * argument);
 void StartImuTask(void const * argument);
 void StartUsartTask(void const * argument);
 void StartRemoteTask(void const * argument);
+void StartCanTask(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -124,6 +125,10 @@ void MX_FREERTOS_Init(void) {
   /* definition and creation of remoteTask */
   osThreadDef(remoteTask, StartRemoteTask, osPriorityNormal, 0, 512);
   remoteTaskHandle = osThreadCreate(osThread(remoteTask), NULL);
+
+  /* definition and creation of canTask */
+  osThreadDef(canTask, StartCanTask, osPriorityHigh, 0, 512);
+  canTaskHandle = osThreadCreate(osThread(canTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -190,11 +195,25 @@ void StartRemoteTask(void const * argument)
 {
   /* USER CODE BEGIN StartRemoteTask */
   /* Infinite loop */
-  remote_task();
+  remote_task();//测试二
   /* USER CODE END StartRemoteTask */
+}
+
+/* USER CODE BEGIN Header_StartCanTask */
+/**
+* @brief Function implementing the canTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartCanTask */
+void StartCanTask(void const * argument)
+{
+  /* USER CODE BEGIN StartCanTask */
+  (void)argument;
+  can_task();//测试三
+  /* USER CODE END StartCanTask */
 }
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
-
 /* USER CODE END Application */

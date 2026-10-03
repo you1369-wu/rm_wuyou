@@ -1,4 +1,4 @@
-//遥控器控制
+//遥控器控制（测试二）
 #include "remote_task.h"
 
 #include "cmsis_os.h"
