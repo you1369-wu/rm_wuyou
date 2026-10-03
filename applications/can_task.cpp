@@ -13,7 +13,7 @@ namespace
 {
 constexpr uint32_t kCanTaskPeriodMs = 1U;
 
-volatile float motor_a_torque_cmd = 0.0F;
+volatile float motor_a_torque_cmd = 0.0F;// 调整为0.1f, 电机会旋转, 注意安全
 volatile float motor_b_torque_cmd = 0.0F;
 
 void clear_tx_data(void)
