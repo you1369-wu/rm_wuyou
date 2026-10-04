@@ -210,7 +210,9 @@ void StartCanTask(void const * argument)
 {
   /* USER CODE BEGIN StartCanTask */
   (void)argument;
-  can_task();//测试三
+  for (;;) {
+    osDelay(10);
+  }
   /* USER CODE END StartCanTask */
 }
 

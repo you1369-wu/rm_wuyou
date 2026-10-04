@@ -59,8 +59,8 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define USART1_RX_Pin GPIO_PIN_7
 #define USART1_RX_GPIO_Port GPIOB
-#define USART1_TX_Pin GPIO_PIN_6
-#define USART1_TX_GPIO_Port GPIOB
+#define USART1_TX_Pin GPIO_PIN_9
+#define USART1_TX_GPIO_Port GPIOA
 #define CS1_ACCEL_Pin GPIO_PIN_4
 #define CS1_ACCEL_GPIO_Port GPIOA
 #define CS1_GYRO_Pin GPIO_PIN_0

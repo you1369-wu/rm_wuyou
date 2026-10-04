@@ -41,6 +41,7 @@ void update_imu_data_snapshot()
 
 extern "C" void imu_task(void)
 {
+  osDelay(100);
   bmi088.init();
 
   while (true) {
