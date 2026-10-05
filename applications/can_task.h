@@ -18,7 +18,7 @@ typedef struct
   bool is_alive;
 } CanMotorData;
 
-void can_task(void);
+void can_task(void const * argument);
 
 bool can_task_get_motor_a_data(CanMotorData * data);
 bool can_task_get_motor_b_data(CanMotorData * data);

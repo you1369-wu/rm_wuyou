@@ -39,8 +39,10 @@ void update_imu_data_snapshot()
 }
 }  // namespace
 
-extern "C" void imu_task(void)
+extern "C" void imu_task(void const * argument)
 {
+  (void)argument;
+
   osDelay(100);
   bmi088.init();
 

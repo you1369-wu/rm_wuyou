@@ -29,7 +29,7 @@ typedef struct
   float temp_c;
 } ImuTaskData;
 
-void imu_task(void);
+void imu_task(void const * argument);
 bool imu_task_get_data(ImuTaskData * data);
 
 #ifdef __cplusplus

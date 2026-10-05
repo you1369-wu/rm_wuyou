@@ -47,8 +47,10 @@ void fill_motor_data(const sp::RM_Motor & motor, CanMotorData * data, uint32_t n
 }
 }  // namespace
 
-extern "C" void can_task(void)
+extern "C" void can_task(void const * argument)
 {
+  (void)argument;
+
   can1.config();
   can1.start();
 

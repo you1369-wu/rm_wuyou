@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-void usart_task(void);
+void usart_task(void const * argument);
 
 #ifdef __cplusplus
 }

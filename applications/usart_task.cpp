@@ -94,8 +94,10 @@ std::size_t build_imu_line(char * buffer, std::size_t size, const ImuTaskData & 
 }
 }  // namespace
 
-extern "C" void usart_task(void)
+extern "C" void usart_task(void const * argument)
 {
+  (void)argument;
+
   while (true) {
     ImuTaskData data = {};
     if (imu_task_get_data(&data)) {

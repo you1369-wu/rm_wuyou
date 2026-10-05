@@ -54,18 +54,16 @@ osThreadId imutaskHandle;
 osThreadId usarttaskHandle;
 osThreadId remoteTaskHandle;
 osThreadId canTaskHandle;
-osThreadId plotTaskHandle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
 /* USER CODE END FunctionPrototypes */
 
 void StartDefaultTask(void const * argument);
-void StartImuTask(void const * argument);
-void StartUsartTask(void const * argument);
-void StartRemoteTask(void const * argument);
-void StartCanTask(void const * argument);
-void StartPlotTask(void const * argument);
+extern void imu_task(void const * argument);
+extern void usart_task(void const * argument);
+extern void remote_task(void const * argument);
+extern void can_task(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -117,24 +115,20 @@ void MX_FREERTOS_Init(void) {
   defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
 
   /* definition and creation of imutask */
-  osThreadDef(imutask, StartImuTask, osPriorityHigh, 0, 512);
+  osThreadDef(imutask, imu_task, osPriorityHigh, 0, 512);
   imutaskHandle = osThreadCreate(osThread(imutask), NULL);
 
   /* definition and creation of usarttask */
-  osThreadDef(usarttask, StartUsartTask, osPriorityLow, 0, 512);
+  osThreadDef(usarttask, usart_task, osPriorityLow, 0, 512);
   usarttaskHandle = osThreadCreate(osThread(usarttask), NULL);
 
   /* definition and creation of remoteTask */
-  osThreadDef(remoteTask, StartRemoteTask, osPriorityNormal, 0, 512);
+  osThreadDef(remoteTask, remote_task, osPriorityNormal, 0, 512);
   remoteTaskHandle = osThreadCreate(osThread(remoteTask), NULL);
 
   /* definition and creation of canTask */
-  osThreadDef(canTask, StartCanTask, osPriorityHigh, 0, 512);
+  osThreadDef(canTask, can_task, osPriorityHigh, 0, 512);
   canTaskHandle = osThreadCreate(osThread(canTask), NULL);
-
-  /* definition and creation of plotTask */
-  osThreadDef(plotTask, StartPlotTask, osPriorityIdle, 0, 512);
-  plotTaskHandle = osThreadCreate(osThread(plotTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -158,86 +152,6 @@ void StartDefaultTask(void const * argument)
     osDelay(1);
   }
   /* USER CODE END StartDefaultTask */
-}
-
-/* USER CODE BEGIN Header_StartImuTask */
-/**
-* @brief Function implementing the imutask thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_StartImuTask */
-void StartImuTask(void const * argument)
-{
-  /* USER CODE BEGIN StartImuTask */
-  /* Infinite loop */
-  imu_task();
-  /* USER CODE END StartImuTask */
-}
-
-/* USER CODE BEGIN Header_StartUsartTask */
-/**
-* @brief Function implementing the usarttask thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_StartUsartTask */
-void StartUsartTask(void const * argument)
-{
-  /* USER CODE BEGIN StartUsartTask */
-  /* Infinite loop */
-  usart_task();
-  /* USER CODE END StartUsartTask */
-}
-
-/* USER CODE BEGIN Header_StartRemoteTask */
-/**
-* @brief Function implementing the remoteTask thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_StartRemoteTask */
-void StartRemoteTask(void const * argument)
-{
-  /* USER CODE BEGIN StartRemoteTask */
-  /* Infinite loop */
-  remote_task();//测试二
-  /* USER CODE END StartRemoteTask */
-}
-
-/* USER CODE BEGIN Header_StartCanTask */
-/**
-* @brief Function implementing the canTask thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_StartCanTask */
-void StartCanTask(void const * argument)
-{
-  /* USER CODE BEGIN StartCanTask */
-  (void)argument;
-  for (;;) {
-    osDelay(10);
-  }
-  /* USER CODE END StartCanTask */
-}
-
-/* USER CODE BEGIN Header_StartPlotTask */
-/**
-* @brief Function implementing the plotTask thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_StartPlotTask */
-void StartPlotTask(void const * argument)
-{
-  /* USER CODE BEGIN StartPlotTask */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
-  /* USER CODE END StartPlotTask */
 }
 
 /* Private application code --------------------------------------------------*/
