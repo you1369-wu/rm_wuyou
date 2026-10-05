@@ -54,6 +54,7 @@ osThreadId imutaskHandle;
 osThreadId usarttaskHandle;
 osThreadId remoteTaskHandle;
 osThreadId canTaskHandle;
+osThreadId plotTaskHandle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -64,6 +65,7 @@ void StartImuTask(void const * argument);
 void StartUsartTask(void const * argument);
 void StartRemoteTask(void const * argument);
 void StartCanTask(void const * argument);
+void StartPlotTask(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -129,6 +131,10 @@ void MX_FREERTOS_Init(void) {
   /* definition and creation of canTask */
   osThreadDef(canTask, StartCanTask, osPriorityHigh, 0, 512);
   canTaskHandle = osThreadCreate(osThread(canTask), NULL);
+
+  /* definition and creation of plotTask */
+  osThreadDef(plotTask, StartPlotTask, osPriorityIdle, 0, 512);
+  plotTaskHandle = osThreadCreate(osThread(plotTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -214,6 +220,24 @@ void StartCanTask(void const * argument)
     osDelay(10);
   }
   /* USER CODE END StartCanTask */
+}
+
+/* USER CODE BEGIN Header_StartPlotTask */
+/**
+* @brief Function implementing the plotTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartPlotTask */
+void StartPlotTask(void const * argument)
+{
+  /* USER CODE BEGIN StartPlotTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartPlotTask */
 }
 
 /* Private application code --------------------------------------------------*/

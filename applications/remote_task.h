@@ -46,6 +46,13 @@ typedef struct
 
 typedef struct
 {
+  uint32_t rx_count;
+  uint32_t frame_count;
+  uint32_t error_count;
+  uint32_t last_error;
+  uint32_t last_rx_event;
+  uint32_t last_rx_ms;
+  uint16_t last_rx_size;
   float ch_rh;
   float ch_rv;
   float ch_lh;
@@ -61,6 +68,7 @@ typedef struct
 } RemoteTaskData;
 
 void remote_task(void);
+bool remote_task_get_data(RemoteTaskData * data);
 
 #ifdef __cplusplus
 }
