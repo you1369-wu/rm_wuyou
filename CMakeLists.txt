@@ -51,11 +51,11 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     applications/usart_task.cpp
     applications/remote_task.cpp
     applications/can_task.cpp
+    applications/control_task.cpp
     applications/pid_train.cpp
     applications/led_task.cpp
     applications/power_on_melody.cpp
     applications/buzzer_task.cpp
-    applications/can_task.cpp
     
     sp_middleware/io/bmi088/bmi088.cpp
     sp_middleware/io/dbus/dbus.cpp
@@ -65,8 +65,6 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     sp_middleware/tools/mahony/mahony.cpp
     sp_middleware/motor/rm_motor/rm_motor.cpp
     sp_middleware/tools/math_tools/math_tools.cpp
-    sp_middleware/io/can/can.cpp
-    sp_middleware/motor/rm_motor/rm_motor.cpp
     # Add user sources here
 )
 

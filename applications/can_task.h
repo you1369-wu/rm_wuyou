@@ -5,11 +5,7 @@
 extern "C" {
 #endif
 
-#ifdef __cplusplus
-void can_task(void);
-#else
 void can_task(void const * argument);
-#endif
 
 #ifdef __cplusplus
 }
