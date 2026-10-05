@@ -99,6 +99,7 @@ int main(void)
   MX_USART3_UART_Init();
   MX_CAN1_Init();
   MX_TIM5_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
