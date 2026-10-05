@@ -5,11 +5,12 @@
 namespace
 {
 constexpr float kTim4ClockHz = 84e6F;
-constexpr float kBuzzerDuty = 0.5F;
+constexpr float kBuzzerDuty = 0.08F;
 
 constexpr app::PowerOnMelody::Note kPowerOnMelody[] = {
-  {4000U, 1000U, 200U, kBuzzerDuty},
-  {4000U, 1000U, 0U, kBuzzerDuty},
+  {2000U, 120U, 80U, kBuzzerDuty},
+  {2000U, 120U, 80U, kBuzzerDuty},
+  {2000U, 120U, 0U, kBuzzerDuty},
 };
 
 constexpr std::size_t kPowerOnMelodyLength =
