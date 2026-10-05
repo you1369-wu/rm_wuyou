@@ -51,6 +51,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     applications/usart_task.cpp
     applications/remote_task.cpp
     applications/can_task.cpp
+    applications/pid_train.cpp
     applications/led_task.cpp
     applications/power_on_melody.cpp
     applications/buzzer_task.cpp
