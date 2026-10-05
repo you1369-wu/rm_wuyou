@@ -56,6 +56,7 @@ osThreadId remoteTaskHandle;
 osThreadId ledtaskHandle;
 osThreadId buzzerTaskHandle;
 osThreadId controlTaskHandle;
+osThreadId plotTaskHandle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -68,6 +69,7 @@ extern void remote_task(void const * argument);
 extern void led_task(void const * argument);
 extern void buzzer_task(void const * argument);
 extern void control_task(void const * argument);
+extern void plot_task(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -122,9 +124,9 @@ void MX_FREERTOS_Init(void) {
   osThreadDef(imutask, imu_task, osPriorityHigh, 0, 512);
   imutaskHandle = osThreadCreate(osThread(imutask), NULL);
 
-  /* definition and creation of usarttask */
-  osThreadDef(usarttask, usart_task, osPriorityLow, 0, 512);
-  usarttaskHandle = osThreadCreate(osThread(usarttask), NULL);
+  /* usarttask temporarily disabled: USART1 is used by plotTask for motor debug */
+  /* osThreadDef(usarttask, usart_task, osPriorityLow, 0, 512); */
+  /* usarttaskHandle = osThreadCreate(osThread(usarttask), NULL); */
 
   /* definition and creation of remoteTask */
   osThreadDef(remoteTask, remote_task, osPriorityNormal, 0, 512);
@@ -141,6 +143,10 @@ void MX_FREERTOS_Init(void) {
   /* definition and creation of controlTask */
   osThreadDef(controlTask, control_task, osPriorityRealtime, 0, 512);
   controlTaskHandle = osThreadCreate(osThread(controlTask), NULL);
+
+  /* definition and creation of plotTask */
+  osThreadDef(plotTask, plot_task, osPriorityLow, 0, 512);
+  plotTaskHandle = osThreadCreate(osThread(plotTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
