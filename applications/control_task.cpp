@@ -12,33 +12,48 @@
 #include "tools/pid/pid.hpp"
 
 extern sp::CAN can1;
-extern sp::RM_Motor motor6020;
+extern sp::RM_Motor motor_a;
+extern sp::RM_Motor motor_b;
 
-GimbalData rm_motor_data;
-RemoteSwitchMode last_sw_l = REMOTE_SWITCH_DOWN;
+GimbalData motor_a_data;
+GimbalData motor_b_data;
 
 // 复位模式人工标定零点:
-// 当C板R标与motor6020的R标机械对齐时, 记录当时的IMU yaw和电机角度并填到这里。
+// 当C板与两台电机的R标机械对齐时, 记录当时的IMU yaw和两台电机角度。
 constexpr float kResetImuYawZero = 0.0f;
-constexpr float kResetMotor6020AngleZero = 0.0f;
+constexpr float kResetMotorAAngleZero = 0.0f;
+constexpr float kResetMotorBAngleZero = 0.0f;
 
 // 联动模式参考零点:
-// 进入中档联动模式时, 记录当时的IMU yaw和motor6020角度, 后续按yaw变化量做1:1跟随。
+// 进入中档时记录三者的当前角度, 以此作为本次联动的参考零点。
 bool link_mode_initialized = false;
 float link_imu_yaw_ref = 0.0f;
-float link_motor6020_ref = 0.0f;
+float link_motor_a_ref = 0.0f;
+float link_motor_b_ref = 0.0f;
+sp::AngleUnwrapper imu_yaw_unwrapper;
 
 //                           dt     kp    ki    kd    mo   mio   alpha  ang? dynamic?
-sp::PID rm_motor_pid_angle(0.001f, 5.0f, 2.5f, 0.0f, 5.0f, 2.5f, 1.0f, true, true);
-sp::PID rm_motor_pid_speed(0.001f, 0.035f, 0.0f, 0.0f, 0.3f, 0.2f, 1.0f, false, true);
+sp::PID motor_a_pid_angle(0.001f, 5.0f, 2.5f, 0.0f, 5.0f, 2.5f, 1.0f, true, true);
+sp::PID motor_a_pid_speed(0.001f, 0.035f, 0.0f, 0.0f, 0.3f, 0.2f, 1.0f, false, true);
+sp::PID motor_b_pid_angle(0.001f, 5.0f, 2.5f, 0.0f, 5.0f, 2.5f, 1.0f, true, true);
+sp::PID motor_b_pid_speed(0.001f, 0.035f, 0.0f, 0.0f, 0.3f, 0.2f, 1.0f, false, true);
 
 void run_disable_mode()
 {
   // 失能模式: 所有电机发送零力矩, 保持无力状态
-  rm_motor_data.given_torque = 0.0f;
-  motor6020.cmd(0.0f);
-  motor6020.write(can1.tx_data);
-  can1.send(motor6020.tx_id);
+  motor_a_data.given_torque = 0.0f;
+  motor_b_data.given_torque = 0.0f;
+  motor_a_data.target_speed_set = 0.0f;
+  motor_b_data.target_speed_set = 0.0f;
+  motor_a_pid_angle.clear();
+  motor_a_pid_speed.clear();
+  motor_b_pid_angle.clear();
+  motor_b_pid_speed.clear();
+  motor_a.cmd(0.0f);
+  motor_b.cmd(0.0f);
+  motor_a.write(can1.tx_data);
+  motor_b.write(can1.tx_data);
+  can1.send(motor_a.tx_id);
 }
 
 void reset_link_mode_reference()
@@ -47,50 +62,48 @@ void reset_link_mode_reference()
   link_mode_initialized = false;
 }
 
-void run_motor6020_angle_control(float target_angle)
+void run_motor_angle_control(float target_angle_a, float target_angle_b)
 {
-  // 电机角度双环控制: 角度环输出目标速度, 速度环输出给定力矩。
-  // 这个函数只负责motor6020本体的闭环控制, 复位/联动模式只需要传入不同目标角度。
-  rm_motor_data.target_angle_set = target_angle;
+  // 两台电机各自运行角度/速度双环PID, 控制量写入同一帧后发送。
+  motor_a_data.target_angle_set = target_angle_a;
+  motor_a_pid_angle.calc(target_angle_a, motor_a.angle);
+  motor_a_data.target_speed_set = motor_a_pid_angle.out;
+  motor_a_pid_speed.calc(motor_a_data.target_speed_set, motor_a.speed);
+  motor_a_data.given_torque = motor_a_pid_speed.out;
 
-  //双环pid
-  rm_motor_pid_angle.calc(rm_motor_data.target_angle_set, motor6020.angle);
-  rm_motor_data.target_speed_set = rm_motor_pid_angle.out;
+  motor_b_data.target_angle_set = target_angle_b;
+  motor_b_pid_angle.calc(target_angle_b, motor_b.angle);
+  motor_b_data.target_speed_set = motor_b_pid_angle.out;
+  motor_b_pid_speed.calc(motor_b_data.target_speed_set, motor_b.speed);
+  motor_b_data.given_torque = motor_b_pid_speed.out;
 
-  rm_motor_pid_speed.calc(rm_motor_data.target_speed_set, motor6020.speed);
-  rm_motor_data.given_torque = rm_motor_pid_speed.out;
-
-  motor6020.cmd(rm_motor_data.given_torque);
-  motor6020.write(can1.tx_data);
-  can1.send(motor6020.tx_id);
+  motor_a.cmd(motor_a_data.given_torque);
+  motor_b.cmd(motor_b_data.given_torque);
+  motor_a.write(can1.tx_data);
+  motor_b.write(can1.tx_data);
+  can1.send(motor_a.tx_id);
 }
 
 void run_reset_mode(float imu_yaw)
 {
-  // 复位模式: 让motor6020的R标跟随当前C板R标方向。
-  // yaw_delta表示当前C板相对人工标定姿态转过的yaw角。
+  // 复位模式: 两台电机的R标分别对齐当前C板R标方向。
   const float yaw_delta = sp::limit_angle(imu_yaw - kResetImuYawZero);
-  const float target_angle = kResetMotor6020AngleZero + yaw_delta;
-
-  run_motor6020_angle_control(target_angle);
+  run_motor_angle_control(kResetMotorAAngleZero + yaw_delta, kResetMotorBAngleZero + yaw_delta);
 }
 
-void run_link_mode(float imu_yaw, RemoteSwitchMode sw_l)
+void run_link_mode(float imu_yaw)
 {
-  (void)sw_l;
-
-  // 2a: C板绕yaw轴转动时, motor6020按1:1比例跟随。
-  // 第一次进入中档时记录当前姿态和电机角度, 避免切入联动模式时电机突然回旧零位。
+  // 2a: C板转动时A电机1:1、B电机1:0.5跟随。
+  // 首次进入中档记录当前位置, 避免切换模式时突然回旧零位。
   if (!link_mode_initialized) {
     link_imu_yaw_ref = imu_yaw;
-    link_motor6020_ref = motor6020.angle;
+    link_motor_a_ref = motor_a.angle;
+    link_motor_b_ref = motor_b.angle;
     link_mode_initialized = true;
   }
 
-  const float yaw_delta = sp::limit_angle(imu_yaw - link_imu_yaw_ref);
-  const float target_angle = link_motor6020_ref + yaw_delta;
-
-  run_motor6020_angle_control(target_angle);
+  const float yaw_delta = imu_yaw - link_imu_yaw_ref;
+  run_motor_angle_control(link_motor_a_ref + yaw_delta, link_motor_b_ref + 0.5f * yaw_delta);
 }
 
 extern "C" void control_task(void const * argument)
@@ -105,15 +118,17 @@ extern "C" void control_task(void const * argument)
   osDelay(100);
 
   // 初始化
-  rm_motor_data.target_angle_set = motor6020.angle + 0.5f;
-  rm_motor_data.target_speed_set = 15.0f;
-  rm_motor_data.given_torque = 0.03f;
+  motor_a_data.target_angle_set = motor_a.angle;
+  motor_b_data.target_angle_set = motor_b.angle;
 
   while (true) {
     RemoteTaskData remote_data = {};
     const bool remote_ready = remote_task_get_data(&remote_data);
     ImuTaskData imu_data = {};
     const bool imu_ready = imu_task_get_data(&imu_data);
+    const float imu_yaw = imu_ready ? imu_yaw_unwrapper.update(imu_data.euler.yaw_rad) : 0.0f;
+    const uint32_t now_ms = osKernelSysTick();
+    const bool motors_ready = motor_a.is_alive(now_ms) && motor_b.is_alive(now_ms);
 
     // 右拨杆下档、遥控器未连接或遥控器失联时, 进入失能模式
     if ((!remote_ready) || (!remote_data.is_alive) || (remote_data.sw_r == REMOTE_SWITCH_DOWN)) {
@@ -121,22 +136,22 @@ extern "C" void control_task(void const * argument)
       run_disable_mode();
     }
     else if (remote_data.sw_r == REMOTE_SWITCH_MID) {
-      if (imu_ready) {
-        run_link_mode(imu_data.euler.yaw_rad, remote_data.sw_l);
+      if (imu_ready && motors_ready) {
+        run_link_mode(imu_yaw);
       }
       else {
-        // 没有IMU姿态时无法计算联动目标角度, 先失能保护电机
+        // 姿态或任一电机反馈缺失时, 不运行角度闭环。
         reset_link_mode_reference();
         run_disable_mode();
       }
     }
     else if (remote_data.sw_r == REMOTE_SWITCH_UP) {
       reset_link_mode_reference();
-      if (imu_ready) {
-        run_reset_mode(imu_data.euler.yaw_rad);
+      if (imu_ready && motors_ready) {
+        run_reset_mode(imu_yaw);
       }
       else {
-        // 没有IMU姿态时无法计算R标方向, 先失能保护电机
+        // 姿态或任一电机反馈缺失时, 不运行角度闭环。
         run_disable_mode();
       }
     }
@@ -144,8 +159,6 @@ extern "C" void control_task(void const * argument)
       // 未知拨杆状态, 先发送零力矩保护电机
       run_disable_mode();
     }
-
-    last_sw_l = remote_ready ? remote_data.sw_l : REMOTE_SWITCH_DOWN;
 
     osDelay(1);
   }
@@ -160,7 +173,8 @@ extern "C" void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef * hcan)
       can1.recv();
 
       // 在CAN接收中断中更新电机反馈, control_task使用最新反馈计算PID
-      if (can1.rx_id == motor6020.rx_id) motor6020.read(can1.rx_data, stamp_ms);
+      if (can1.rx_id == motor_a.rx_id) motor_a.read(can1.rx_data, stamp_ms);
+      if (can1.rx_id == motor_b.rx_id) motor_b.read(can1.rx_data, stamp_ms);
     }
   }
 }
