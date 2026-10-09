@@ -1,6 +1,8 @@
 //负责can的收发和电机控制
 #include "control_task.hpp"
 
+#include <cmath>
+
 #include "can.h"
 #include "cmsis_os.h"
 #include "imu_task.h"
@@ -31,6 +33,10 @@ float link_imu_yaw_ref = 0.0f;
 float link_motor_a_ref = 0.0f;
 float link_motor_b_ref = 0.0f;
 float link_motor_b_ratio = 0.5f;
+enum class LinkManualSource { NONE, MOTOR_A, MOTOR_B };
+LinkManualSource link_manual_source = LinkManualSource::NONE;
+uint32_t link_last_board_motion_ms = 0U;
+uint32_t link_last_manual_motion_ms = 0U;
 sp::AngleUnwrapper imu_yaw_unwrapper;
 
 //                           dt     kp    ki    kd    mo   mio   alpha  ang? dynamic?
@@ -61,22 +67,37 @@ void reset_link_mode_reference()
 {
   // 离开中档联动模式后清除参考零点, 下次进入中档时重新以当前位置为零点。
   link_mode_initialized = false;
+  link_manual_source = LinkManualSource::NONE;
 }
 
-void run_motor_angle_control(float target_angle_a, float target_angle_b)
+void run_motor_angle_control(
+  float target_angle_a, float target_angle_b, LinkManualSource manual_source = LinkManualSource::NONE)
 {
   // 两台电机各自运行角度/速度双环PID, 控制量写入同一帧后发送。
   motor_a_data.target_angle_set = target_angle_a;
-  motor_a_pid_angle.calc(target_angle_a, motor_a.angle);
-  motor_a_data.target_speed_set = motor_a_pid_angle.out;
-  motor_a_pid_speed.calc(motor_a_data.target_speed_set, motor_a.speed);
-  motor_a_data.given_torque = motor_a_pid_speed.out;
+  if (manual_source == LinkManualSource::MOTOR_A) {
+    // 被手拨的电机不施加保持力矩, 由另一台电机跟随它。
+    motor_a_data.target_speed_set = 0.0f;
+    motor_a_data.given_torque = 0.0f;
+  }
+  else {
+    motor_a_pid_angle.calc(target_angle_a, motor_a.angle);
+    motor_a_data.target_speed_set = motor_a_pid_angle.out;
+    motor_a_pid_speed.calc(motor_a_data.target_speed_set, motor_a.speed);
+    motor_a_data.given_torque = motor_a_pid_speed.out;
+  }
 
   motor_b_data.target_angle_set = target_angle_b;
-  motor_b_pid_angle.calc(target_angle_b, motor_b.angle);
-  motor_b_data.target_speed_set = motor_b_pid_angle.out;
-  motor_b_pid_speed.calc(motor_b_data.target_speed_set, motor_b.speed);
-  motor_b_data.given_torque = motor_b_pid_speed.out;
+  if (manual_source == LinkManualSource::MOTOR_B) {
+    motor_b_data.target_speed_set = 0.0f;
+    motor_b_data.given_torque = 0.0f;
+  }
+  else {
+    motor_b_pid_angle.calc(target_angle_b, motor_b.angle);
+    motor_b_data.target_speed_set = motor_b_pid_angle.out;
+    motor_b_pid_speed.calc(motor_b_data.target_speed_set, motor_b.speed);
+    motor_b_data.given_torque = motor_b_pid_speed.out;
+  }
 
   motor_a.cmd(motor_a_data.given_torque);
   motor_b.cmd(motor_b_data.given_torque);
@@ -92,9 +113,15 @@ void run_reset_mode(float imu_yaw)
   run_motor_angle_control(kResetMotorAAngleZero + yaw_delta, kResetMotorBAngleZero + yaw_delta);
 }
 
-void run_link_mode(float imu_yaw, RemoteSwitchMode sw_l)
+void run_link_mode(float imu_yaw, float yaw_rate, RemoteSwitchMode sw_l, uint32_t now_ms)
 {
-  float ratio_b = 0.0f;
+  constexpr float kManualAngleErrorRad = 0.08f;
+  constexpr float kManualSpeedRadS = 0.15f;
+  constexpr float kBoardYawRateRadS = 0.10f;
+  constexpr uint32_t kManualDetectDelayMs = 150U;
+  constexpr uint32_t kManualReleaseMs = 150U;
+
+  float ratio_b = link_motor_b_ratio;
   switch (sw_l) {
     case REMOTE_SWITCH_DOWN:
       ratio_b = 0.5f;
@@ -115,6 +142,9 @@ void run_link_mode(float imu_yaw, RemoteSwitchMode sw_l)
     link_motor_a_ref = motor_a.angle;
     link_motor_b_ref = motor_b.angle;
     link_motor_b_ratio = ratio_b;
+    link_manual_source = LinkManualSource::NONE;
+    link_last_board_motion_ms = now_ms;
+    link_last_manual_motion_ms = now_ms;
     link_mode_initialized = true;
   }
   else if (ratio_b != link_motor_b_ratio) {
@@ -124,10 +154,57 @@ void run_link_mode(float imu_yaw, RemoteSwitchMode sw_l)
     link_motor_b_ref += link_motor_b_ratio * yaw_delta;
     link_imu_yaw_ref = imu_yaw;
     link_motor_b_ratio = ratio_b;
+    // 手拨中换档先结束本次输入, 避免用新比例解释旧比例下的位移。
+    link_manual_source = LinkManualSource::NONE;
+    link_last_board_motion_ms = now_ms;
   }
 
-  const float yaw_delta = imu_yaw - link_imu_yaw_ref;
-  run_motor_angle_control(link_motor_a_ref + yaw_delta, link_motor_b_ref + ratio_b * yaw_delta);
+  if (std::fabs(yaw_rate) > kBoardYawRateRadS) link_last_board_motion_ms = now_ms;
+
+  float yaw_delta = imu_yaw - link_imu_yaw_ref;
+  const float target_a = link_motor_a_ref + yaw_delta;
+  const float target_b = link_motor_b_ref + ratio_b * yaw_delta;
+  const float error_a = sp::limit_angle(motor_a.angle - target_a);
+  const float error_b = sp::limit_angle(motor_b.angle - target_b);
+
+  // C板静止后, 只有电机持续朝远离目标的方向运动, 才认定它被手动转动。
+  if (link_manual_source == LinkManualSource::NONE &&
+      now_ms - link_last_board_motion_ms >= kManualDetectDelayMs) {
+    const bool manual_a = std::fabs(error_a) > kManualAngleErrorRad &&
+                          std::fabs(motor_a.speed) > kManualSpeedRadS && error_a * motor_a.speed > 0.0f;
+    const bool manual_b = std::fabs(error_b) > kManualAngleErrorRad &&
+                          std::fabs(motor_b.speed) > kManualSpeedRadS && error_b * motor_b.speed > 0.0f;
+
+    if (manual_a && (!manual_b || std::fabs(error_a) >= std::fabs(error_b / ratio_b))) {
+      link_manual_source = LinkManualSource::MOTOR_A;
+      motor_a_pid_angle.clear();
+      motor_a_pid_speed.clear();
+    }
+    else if (manual_b) {
+      link_manual_source = LinkManualSource::MOTOR_B;
+      motor_b_pid_angle.clear();
+      motor_b_pid_speed.clear();
+    }
+    if (link_manual_source != LinkManualSource::NONE) link_last_manual_motion_ms = now_ms;
+  }
+
+  if (link_manual_source != LinkManualSource::NONE) {
+    // 改变虚拟yaw参考零点, 不改变IMU的实际yaw; B作为输入时按当前比例换算成A的位移。
+    const bool input_a = link_manual_source == LinkManualSource::MOTOR_A;
+    const float manual_delta = input_a ? error_a : error_b / ratio_b;
+    const float input_speed = input_a ? motor_a.speed : motor_b.speed;
+    link_imu_yaw_ref -= manual_delta;
+
+    if (std::fabs(input_speed) > kManualSpeedRadS) link_last_manual_motion_ms = now_ms;
+    if (now_ms - link_last_manual_motion_ms >= kManualReleaseMs) {
+      link_manual_source = LinkManualSource::NONE;
+      link_last_board_motion_ms = now_ms;
+    }
+  }
+
+  yaw_delta = imu_yaw - link_imu_yaw_ref;
+  run_motor_angle_control(
+    link_motor_a_ref + yaw_delta, link_motor_b_ref + ratio_b * yaw_delta, link_manual_source);
 }
 
 extern "C" void control_task(void const * argument)
@@ -161,7 +238,7 @@ extern "C" void control_task(void const * argument)
     }
     else if (remote_data.sw_r == REMOTE_SWITCH_MID) {
       if (imu_ready && motors_ready) {
-        run_link_mode(imu_yaw, remote_data.sw_l);
+        run_link_mode(imu_yaw, imu_data.gyro_rad_s.z, remote_data.sw_l, now_ms);
       }
       else {
         // 姿态或任一电机反馈缺失时, 不运行角度闭环。
