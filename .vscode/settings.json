@@ -6,7 +6,7 @@
     "[c]": {
         "editor.formatOnSave": false,
     },
-    "cortex-debug.variableUseNaturalFormat": false,
+    "cortex-debug.variableUseNaturalFormat": true,
     "cmake.configureOnOpen": true,
     "cmake.options.advanced": {
         "configurePreset": {
