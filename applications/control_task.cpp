@@ -21,8 +21,8 @@ GimbalData motor_b_data;
 // 复位模式人工标定零点:
 // 当C板与两台电机的R标机械对齐时, 记录当时的IMU yaw和两台电机角度。
 constexpr float kResetImuYawZero = 0.0f;
-constexpr float kResetMotorAAngleZero = 0.0f;
-constexpr float kResetMotorBAngleZero = 0.0f;
+constexpr float kResetMotorAAngleZero = 2.86164117f;
+constexpr float kResetMotorBAngleZero = 2.10692263f;
 
 // 联动模式参考零点:
 // 进入中档时记录三者的当前角度, 以此作为本次联动的参考零点。
