@@ -30,6 +30,7 @@ bool link_mode_initialized = false;
 float link_imu_yaw_ref = 0.0f;
 float link_motor_a_ref = 0.0f;
 float link_motor_b_ref = 0.0f;
+float link_motor_b_ratio = 0.5f;
 sp::AngleUnwrapper imu_yaw_unwrapper;
 
 //                           dt     kp    ki    kd    mo   mio   alpha  ang? dynamic?
@@ -91,19 +92,42 @@ void run_reset_mode(float imu_yaw)
   run_motor_angle_control(kResetMotorAAngleZero + yaw_delta, kResetMotorBAngleZero + yaw_delta);
 }
 
-void run_link_mode(float imu_yaw)
+void run_link_mode(float imu_yaw, RemoteSwitchMode sw_l)
 {
-  // 2a: C板转动时A电机1:1、B电机1:0.5跟随。
-  // 首次进入中档记录当前位置, 避免切换模式时突然回旧零位。
+  float ratio_b = 0.0f;
+  switch (sw_l) {
+    case REMOTE_SWITCH_DOWN:
+      ratio_b = 0.5f;
+      break;
+    case REMOTE_SWITCH_MID:
+      ratio_b = -1.0f;
+      break;
+    case REMOTE_SWITCH_UP:
+      ratio_b = 3.0f;
+      break;
+    default:
+      break;
+  }
+
+  // 首次进入联动模式时, 以当前姿态和两台电机位置作为参考点。
   if (!link_mode_initialized) {
     link_imu_yaw_ref = imu_yaw;
     link_motor_a_ref = motor_a.angle;
     link_motor_b_ref = motor_b.angle;
+    link_motor_b_ratio = ratio_b;
     link_mode_initialized = true;
+  }
+  else if (ratio_b != link_motor_b_ratio) {
+    // 换档时沿用旧比例计算当前目标, 再以此为新参考点, 防止目标角度跳变。
+    const float yaw_delta = imu_yaw - link_imu_yaw_ref;
+    link_motor_a_ref += yaw_delta;
+    link_motor_b_ref += link_motor_b_ratio * yaw_delta;
+    link_imu_yaw_ref = imu_yaw;
+    link_motor_b_ratio = ratio_b;
   }
 
   const float yaw_delta = imu_yaw - link_imu_yaw_ref;
-  run_motor_angle_control(link_motor_a_ref + yaw_delta, link_motor_b_ref + 0.5f * yaw_delta);
+  run_motor_angle_control(link_motor_a_ref + yaw_delta, link_motor_b_ref + ratio_b * yaw_delta);
 }
 
 extern "C" void control_task(void const * argument)
@@ -137,7 +161,7 @@ extern "C" void control_task(void const * argument)
     }
     else if (remote_data.sw_r == REMOTE_SWITCH_MID) {
       if (imu_ready && motors_ready) {
-        run_link_mode(imu_yaw);
+        run_link_mode(imu_yaw, remote_data.sw_l);
       }
       else {
         // 姿态或任一电机反馈缺失时, 不运行角度闭环。
